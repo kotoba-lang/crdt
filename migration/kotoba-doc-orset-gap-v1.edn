@@ -1,0 +1,48 @@
+{:schema "kotoba-crdt-doc-orset-gap/v1"
+ :reviewed-on "2026-07-19"
+ :sources
+ [{:path "src/kotoba/crdt/orset.cljc"
+   :legacy-domain :arbitrary-element-to-observed-tag-set-map}
+  {:path "src/kotoba/crdt/doc.cljc"
+   :legacy-domain :arbitrary-entity-to-arbitrary-field-to-register-map}]
+ :consumer-inventory
+ {:workspace-roots ["orgs" "projects"]
+  :external-source-references 0
+  :external-dependency-declarations 0
+  :evidence-command
+  "rg --glob deps.edn --glob bb.edn --glob '*.clj' --glob '*.cljc' --glob '*.cljs' --glob '*.edn' 'kotoba-lang/crdt|io.github.kotoba-lang/crdt|kotoba\\.crdt\\.(clock|register|doc|orset)' orgs projects"
+  :note "Only this repository and the generated q9 inventory reference these namespaces."}
+ :decision
+ {:kind :retain-cljc-pending-language-profile
+  :migration-authorized false
+  :reason "The qualified Kotoba subset has nominal records, options and bounded sets but no canonical typed associative map whose key/value descriptors preserve the arbitrary entity/field topology. A fixed one-entity document would narrow semantics and is not a migration."
+  :forbidden-shortcuts
+  [:single-entity-document-replacement
+   :fixed-field-document-replacement
+   :host-map-fallback
+   :general-higher-order-merge-callback
+   :javascript-object-identity-or-order]}
+ :required-language-design
+ {:typed-map
+  {:bounded-entries true
+   :explicit-key-and-value-descriptors true
+   :canonical-cross-backend-key-order true
+   :duplicate-key-rejection true
+   :bounded-get-assoc-dissoc-contains true
+   :no-host-sentinel-for-missing true}
+  :orset
+  {:nominal-tag-record true
+   :bounded-tag-set true
+   :explicit-add-remove-observed-merge-operations true
+   :commutative-associative-idempotent-conformance true}
+  :document
+  {:typed-entity-id-profile-required true
+   :typed-field-id-profile-required true
+   :typed-register-value-profile-required true
+   :op-variant-required true
+   :op-and-state-merge-conformance true}}
+ :completed
+ [:registry-i64-actor-clock
+  :string-v1-register
+  :installed-web-wasm-conformance]
+ :next-action :qualify-bounded-generic-typed-map}
