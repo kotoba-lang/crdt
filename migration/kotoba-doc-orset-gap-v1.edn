@@ -15,7 +15,7 @@
  :decision
  {:kind :retain-arbitrary-cljc-and-add-explicit-typed-profiles
   :migration-authorized false
-  :reason "Arbitrary legacy domains remain CLJC. Compiler PR 100 supplies a separate bounded canonical typed-map profile, allowing explicitly typed CRDT profiles without presenting domain narrowing as a replacement."
+  :reason "Arbitrary legacy domains remain CLJC. Compiler commit 94f29b24cdf5c5aa92b35cf2dd41c1d56b8205c1 supplies a separate bounded canonical typed-map profile, allowing explicitly typed CRDT profiles without presenting domain narrowing as a replacement."
   :forbidden-shortcuts
   [:single-entity-document-replacement
    :fixed-field-document-replacement
@@ -53,6 +53,7 @@
   :installed-web-wasm-conformance]
  :implementation
  {:compiler-pr "https://github.com/kotoba-lang/compiler/pull/100"
+  :compiler-commit "94f29b24cdf5c5aa92b35cf2dd41c1d56b8205c1"
   :orset-source "src/kotoba/crdt/orset.kotoba"
   :orset-conformance "test/kotoba/crdt/orset_conformance.kotoba"
   :orset-project-digest "8aad8ed7dfab36a8963cadbe8ceb6c7d57c940a63e4863d0af8b9d102fc581c4"
@@ -61,4 +62,4 @@
   :document-project-digest "a52d176a09e3a2cff80841f329610508f7e4c47e203e7fade5ce0cc4d4eebdac"
   :local-runtime {:web-main 42 :wasm-main 42}
   :installed-runtime :pending-release}
- :next-action :merge-release-and-run-installed-orset-document-conformance}
+ :next-action :release-and-run-installed-orset-document-conformance}
