@@ -50,7 +50,7 @@
   :string-document-v1-reference-web-wasm-local
   :string-document-v1-op-idempotence
   :string-document-v1-state-merge-commutative-associative-idempotent
-  :installed-web-wasm-conformance]
+  :installed-v0.6.29-web-execution-and-wasm-emission]
  :implementation
  {:compiler-pr "https://github.com/kotoba-lang/compiler/pull/100"
   :compiler-commit "94f29b24cdf5c5aa92b35cf2dd41c1d56b8205c1"
@@ -61,5 +61,14 @@
   :document-conformance "test/kotoba/crdt/doc_conformance.kotoba"
   :document-project-digest "a52d176a09e3a2cff80841f329610508f7e4c47e203e7fade5ce0cc4d4eebdac"
   :local-runtime {:web-main 42 :wasm-main 42}
-  :installed-runtime :pending-release}
- :next-action :release-and-run-installed-orset-document-conformance}
+  :installed-runtime
+  {:release "v0.6.29"
+   :distribution :checksum-verified-shell-native
+   :jvm-required false
+   :orset {:web-main 42
+           :project-digest "ad3797797db781f4922d3e3d7426c2b121c746f21ee2db7e0f89afe3a90524f0"
+           :wasm-emitted true}
+   :document {:web-main 42
+              :project-digest "91247e64a340aeb231f956ac5ecf4a78f8c013bfe885935360f3d1ea36a1d99c"
+              :wasm-emitted true}}}
+ :next-action :obtain-consumer-domain-mapping-authorization-before-cutover}
