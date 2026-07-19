@@ -28,6 +28,23 @@ kotoba.crdt.orset     Observed-Remove Set (add-wins) — entity membership
 kotoba.crdt.doc       entity-attribute doc = orset of ids + per-field registers
 ```
 
+The `.kotoba` files are explicit bounded profiles, not silent replacements
+for the arbitrary CLJC domains. `clock.kotoba` uses registry-backed positive
+i64 actor IDs, `register.kotoba` stores strings, and `orset.kotoba` uses i64
+entity IDs plus nominal Lamport-stamp tags. The OR-set stores canonical typed
+maps rather than host maps/sets, returns typed options for absence, and merges
+by fuel-bounded canonical entry traversal. Its conformance module proves
+add-wins behavior plus commutativity, associativity and idempotence on the
+reference, restricted Web and Wasm runtimes. Consumers whose IDs or values do
+not have a reviewed mapping continue to use the CLJC API.
+
+`doc.kotoba` composes that OR-set with the `string-v1` register as
+`string-document-v1`: i64 entities, keyword field IDs and string field values.
+Its operations are a closed add/remove/set-field variant; state merge walks
+canonical nested maps and resolves registers by nominal Lamport stamps. The
+conformance graph proves op replay idempotence, deterministic LWW selection,
+and commutative/associative/idempotent state merge on reference, Web and Wasm.
+
 `kotoba.crdt.doc` is the integration surface. A document is an OR-Set of
 entity ids (slide ids, shape ids, block ids, row ids...) plus, per entity, a
 map of field -> LWW-Register:

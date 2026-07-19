@@ -13,9 +13,9 @@
   "rg --glob deps.edn --glob bb.edn --glob '*.clj' --glob '*.cljc' --glob '*.cljs' --glob '*.edn' 'kotoba-lang/crdt|io.github.kotoba-lang/crdt|kotoba\\.crdt\\.(clock|register|doc|orset)' orgs projects"
   :note "Only this repository and the generated q9 inventory reference these namespaces."}
  :decision
- {:kind :retain-cljc-pending-language-profile
+ {:kind :retain-arbitrary-cljc-and-add-explicit-typed-profiles
   :migration-authorized false
-  :reason "The qualified Kotoba subset has nominal records, options and bounded sets but no canonical typed associative map whose key/value descriptors preserve the arbitrary entity/field topology. A fixed one-entity document would narrow semantics and is not a migration."
+  :reason "Arbitrary legacy domains remain CLJC. Compiler PR 100 supplies a separate bounded canonical typed-map profile, allowing explicitly typed CRDT profiles without presenting domain narrowing as a replacement."
   :forbidden-shortcuts
   [:single-entity-document-replacement
    :fixed-field-document-replacement
@@ -44,5 +44,21 @@
  :completed
  [:registry-i64-actor-clock
   :string-v1-register
+  :bounded-canonical-typed-map-reference-web-wasm-local
+  :orset-i64-v1-reference-web-wasm-local
+  :orset-i64-v1-commutative-associative-idempotent-conformance
+  :string-document-v1-reference-web-wasm-local
+  :string-document-v1-op-idempotence
+  :string-document-v1-state-merge-commutative-associative-idempotent
   :installed-web-wasm-conformance]
- :next-action :qualify-bounded-generic-typed-map}
+ :implementation
+ {:compiler-pr "https://github.com/kotoba-lang/compiler/pull/100"
+  :orset-source "src/kotoba/crdt/orset.kotoba"
+  :orset-conformance "test/kotoba/crdt/orset_conformance.kotoba"
+  :orset-project-digest "8aad8ed7dfab36a8963cadbe8ceb6c7d57c940a63e4863d0af8b9d102fc581c4"
+  :document-source "src/kotoba/crdt/doc.kotoba"
+  :document-conformance "test/kotoba/crdt/doc_conformance.kotoba"
+  :document-project-digest "a52d176a09e3a2cff80841f329610508f7e4c47e203e7fade5ce0cc4d4eebdac"
+  :local-runtime {:web-main 42 :wasm-main 42}
+  :installed-runtime :pending-release}
+ :next-action :merge-release-and-run-installed-orset-document-conformance}
