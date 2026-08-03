@@ -28,24 +28,16 @@
         empty-right (register/merge-register later empty)]
     (if (string=? "blue"
           (register/value
-            (option-value-of
-              [:option [:record :kotoba.crdt/string-register
-                        [[:value :string]
-                         [:stamp [:record :kotoba.crdt/stamp
-                                  [[:counter :i64] [:actor :i64]]]]]]]
-              winner (register/write "invalid"
-                       (record [:record :kotoba.crdt/stamp
-                                [[:counter :i64] [:actor :i64]]] 0 1)))))
+            (option-or winner
+              (register/write "invalid"
+                (record [:record :kotoba.crdt/stamp
+                         [[:counter :i64] [:actor :i64]]] 0 1)))))
       (if (string=? "blue"
             (register/value
-              (option-value-of
-                [:option [:record :kotoba.crdt/string-register
-                          [[:value :string]
-                           [:stamp [:record :kotoba.crdt/stamp
-                                    [[:counter :i64] [:actor :i64]]]]]]]
-                reverse-winner (register/write "invalid"
-                                 (record [:record :kotoba.crdt/stamp
-                                          [[:counter :i64] [:actor :i64]]] 0 1)))))
+              (option-or reverse-winner
+                (register/write "invalid"
+                  (record [:record :kotoba.crdt/stamp
+                           [[:counter :i64] [:actor :i64]]] 0 1)))))
         (if (option-some?-of
               [:option [:record :kotoba.crdt/string-register
                         [[:value :string]

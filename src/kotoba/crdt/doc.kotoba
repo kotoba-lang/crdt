@@ -66,9 +66,8 @@
   (let [entity (hetero-vector-at set-payload-type payload 0)
         field (hetero-vector-at set-payload-type payload 1)
         fields (record-get doc-type doc :fields)
-        entity-fields (option-value-of [:option field-map-type]
-                        (typed-map-get fields-type fields entity)
-                        (typed-map-new field-map-type))
+        entity-fields (option-or (typed-map-get fields-type fields entity)
+                                 (typed-map-new field-map-type))
         incoming (register/write
                    (hetero-vector-at set-payload-type payload 2)
                    (hetero-vector-at set-payload-type payload 3))
@@ -125,9 +124,8 @@
     (some entry
       (let [entity (hetero-vector-at [:vector [:i64 field-map-type]] entry 0)
             incoming (hetero-vector-at [:vector [:i64 field-map-type]] entry 1)
-            current (option-value-of [:option field-map-type]
-                      (typed-map-get fields-type left entity)
-                      (typed-map-new field-map-type))]
+            current (option-or (typed-map-get fields-type left entity)
+                               (typed-map-new field-map-type))]
         (merge-fields-from
           (typed-map-assoc fields-type left entity
             (merge-field-map-from current incoming 0))
