@@ -43,8 +43,7 @@
   [orset [:alias orset-type] elem :i64 tag [:alias tag-type]]
   [:alias orset-type]
   (let [adds (record-get orset-type orset :adds)
-        tags (option-value-of [:option tag-map-type]
-               (typed-map-get adds-type adds elem) (empty-tags))]
+        tags (option-or (typed-map-get adds-type adds elem) (empty-tags))]
     (record-assoc orset-type orset :adds
       (typed-map-assoc adds-type adds elem
         (typed-map-assoc tag-map-type tags tag true)))))
@@ -52,9 +51,8 @@
 (defn observed-tags
   [orset [:alias orset-type] elem :i64]
   [:alias tag-map-type]
-  (option-value-of [:option tag-map-type]
-    (typed-map-get adds-type (record-get orset-type orset :adds) elem)
-    (empty-tags)))
+  (option-or (typed-map-get adds-type (record-get orset-type orset :adds) elem)
+             (empty-tags)))
 
 (defn remove-tags
   [orset [:alias orset-type] tags [:alias tag-map-type]]
@@ -89,8 +87,7 @@
     (some entry
       (let [elem (hetero-vector-at [:vector [:i64 tag-map-type]] entry 0)
             right-tags (hetero-vector-at [:vector [:i64 tag-map-type]] entry 1)
-            left-tags (option-value-of [:option tag-map-type]
-                        (typed-map-get adds-type left elem) (empty-tags))]
+            left-tags (option-or (typed-map-get adds-type left elem) (empty-tags))]
         (merge-adds-from
           (typed-map-assoc adds-type left elem (merge-tags left-tags right-tags))
           right (+ index 1))))))
