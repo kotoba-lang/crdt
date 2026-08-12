@@ -9,12 +9,18 @@
  ;;
  ;; The KIR interpreter is a RUNTIME dependency: `kotoba.crdt.kotoba-oracle`
  ;; executes the shipped `resources/kotoba/crdt/oracle/*.kir.edn` through it, so
- ;; the Lamport rules in `clock.kotoba` are what this library runs rather than
- ;; what a test compares against. What it buys is the end of the second
- ;; implementation: `clock.cljc` no longer computes `max(local, received) + 1`
- ;; or the actor tiebreak, it asks the shipped core. The COMPILER stays
- ;; test-only (see :test) — it produced the artifact and never reaches a
+ ;; the rules in `clock.kotoba` and `register.kotoba` are what this library runs
+ ;; rather than what a test compares against. What it buys is the end of the
+ ;; second implementation: `clock.cljc` no longer computes
+ ;; `max(local, received) + 1` or the actor tiebreak, and `register.cljc` no
+ ;; longer computes the LWW winner — they ask the shipped cores. The COMPILER
+ ;; stays test-only (see :test) — it produced the artifacts and never reaches a
  ;; consumer.
+ ;;
+ ;; `orset.kotoba` and `doc.kotoba` are NOT shipped as artifacts and keep their
+ ;; parity gates: both hold a collection whose size is the user's document, and
+ ;; the interpreter refuses one past a node limit (measured: 11 orset elements,
+ ;; 5 doc entities). That is a property of those cores, not a missing step.
  ;;
  ;; Pinned to the kir the pinned compiler emits for
  ;; (`io.github.kotoba-lang/compiler` 1e6dbb17 declares kotoba-kir 838cd77c).

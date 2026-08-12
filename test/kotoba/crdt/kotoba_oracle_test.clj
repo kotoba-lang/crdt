@@ -21,17 +21,36 @@
             [clojure.test :refer [deftest is testing]]
             [kotoba.compiler.core :as compiler]
             [kotoba.crdt.clock :as clock]
+            [kotoba.crdt.doc :as doc]
             [kotoba.crdt.kotoba-oracle :as oracle]
-            [kotoba.crdt.kotoba-oracle-gen :as gen]))
+            [kotoba.crdt.kotoba-oracle-gen :as gen]
+            [kotoba.crdt.register :as register]
+            [kotoba.kir :as kir]))
 
 (deftest the-shipped-artifact-is-the-current-source-compiled
+  ;; `gen/compile-kir`, not a compile call spelled out again here: the whole
+  ;; point of the check is that the file on disk is what the generator would
+  ;; write, and a second spelling could drift from the first and still pass.
   (doseq [[id source] (sort-by key oracle/cores)]
     (testing (str id " <- " source)
-      (let [shipped (edn/read-string (slurp (io/resource (oracle/resource-path id))))
-            fresh (:kir (compiler/compile-source (slurp (io/file "src" source))
-                                                 gen/target {}))]
-        (is (= fresh shipped)
+      (let [shipped (edn/read-string (slurp (io/resource (oracle/resource-path id))))]
+        (is (= (gen/compile-kir source) shipped)
             (str "shipped KIR for " id " is stale — run `clojure -M:test:gen`"))))))
+
+(deftest compiling-twice-gives-the-same-kir-so-the-drift-check-can-compare-raw
+  ;; The drift check above compares with `=`, which is only a check at all if
+  ;; the compiler is deterministic. It need not have been: lowering can
+  ;; introduce gensyms, and a gensym counter is per-JVM, so an artifact
+  ;; containing one would make that comparison fail always and everywhere
+  ;; rather than only when the source moved.
+  ;;
+  ;; Two compiles in ONE JVM is the exact question — the counter advances
+  ;; between them — and it is measured here rather than assumed from reading
+  ;; the sources, so that a future compiler pin, or an `and`/`or` added to a
+  ;; core, reports itself here instead of turning the drift gate into noise.
+  (doseq [[id source] (sort-by key oracle/cores)]
+    (testing (str id " <- " source)
+      (is (= (gen/compile-kir source) (gen/compile-kir source))))))
 
 (deftest every-declared-core-actually-ships
   (doseq [id (keys oracle/cores)]
@@ -74,11 +93,12 @@
 
 (defn- with-core
   "Run `f` against a substituted core, then put the shipped one back."
-  [kir f]
-  (try
-    (oracle/register-kir! :clock kir)
-    (f)
-    (finally (oracle/deregister-kir! :clock))))
+  ([kir f] (with-core :clock kir f))
+  ([id kir f]
+   (try
+     (oracle/register-kir! id kir)
+     (f)
+     (finally (oracle/deregister-kir! id)))))
 
 (deftest the-host-reads-the-artifact-rather-than-keeping-a-copy
   (let [wrong (:kir (compiler/compile-source wrong-clock-source gen/target {}))
@@ -161,3 +181,177 @@
          (oracle/param-types :clock 'observe)))
   (is (= [:i64] (oracle/param-types :clock 'init)))
   (is (= :bool (:result (oracle/signature :clock 'before?)))))
+
+;; ── register ─────────────────────────────────────────────────────────
+
+(def ^:private register-record
+  "[:record …] as `register.kotoba` declares it, spelled out here for the same
+  reason `clock-record` is: the substitute has to declare the same types."
+  (str "[:record :kotoba.crdt/string-register"
+       " [[:value :string] [:stamp " stamp-record "]]]"))
+
+(def ^:private option-register
+  (str "[:option " register-record "]"))
+
+(def ^:private wrong-register-source
+  "Same exports, same signatures, deliberately different answers.
+
+  `merge-register` always keeps the LEFT option, which is wrong in both
+  directions at once: it returns `none` where a register should have survived
+  merging with absence, and it keeps the earlier stamp where the later one
+  wins. `init` invents a register where absence belongs, and `write` and
+  `value` report a marker instead of the content, so a host that delegated the
+  rule but kept its own idea of the register's SHAPE is caught too.
+
+  It does not `:require` the clock — it does not need to compare anything —
+  which is why `compile-source` is enough to build it."
+  (str "(ns kotoba.crdt.register (:export [init write value merge-register]))"
+       "(defn init [] " option-register
+       "  (option-some-of " option-register
+       "    (record " register-record " \"INIT-FROM-SUBSTITUTE\""
+       "      (record " stamp-record " 0 0))))"
+       "(defn write [value :string stamp " stamp-record "] " register-record
+       "  (record " register-record " \"WRITTEN-BY-SUBSTITUTE\" stamp))"
+       "(defn value [register " register-record "] :string"
+       "  \"VALUE-FROM-SUBSTITUTE\")"
+       "(defn merge-register [left " option-register " right " option-register "] "
+       option-register "  left)"))
+
+(defn- set-title-through-doc
+  "`doc`'s `:set-field` op, as far as the register it lands on.
+
+  `doc` never reaches the guest itself — its state is a collection the
+  interpreter refuses — so this is the whole of what `doc` delegates: one
+  field's winner, decided one register pair at a time."
+  []
+  (get-in (doc/apply-op (doc/init)
+                        {:crdt/op :set-field :crdt/entity 1 :crdt/field :title
+                         :crdt/value "hello"
+                         :crdt/stamp {:crdt/counter 9 :crdt/actor 0}})
+          [:crdt/fields 1 :title]))
+
+(deftest the-host-reads-the-register-artifact-rather-than-keeping-a-copy
+  (let [wrong (:kir (compiler/compile-source wrong-register-source gen/target {}))
+        early {:crdt/value "red" :crdt/stamp {:crdt/counter 1 :crdt/actor 0}}
+        late {:crdt/value "blue" :crdt/stamp {:crdt/counter 2 :crdt/actor 0}}]
+    (testing "the shipped answers"
+      (is (nil? (register/init)))
+      (is (= early (register/write "red" {:crdt/counter 1 :crdt/actor 0})))
+      (is (= "red" (register/value early)))
+      (is (= late (register/merge-register early late)))
+      (is (= late (register/merge-register late early)) "either side of the merge")
+      (is (= late (register/merge-register nil late)))
+      (is (= early (register/merge-register early nil))))
+    (with-core :register wrong
+      (fn []
+        ;; A host that had kept `(:crdt/value register)` and the `cond` over
+        ;; `clock/before?` would answer exactly as it did above, and nothing
+        ;; else in this repository would say so.
+        (is (= {:crdt/value "INIT-FROM-SUBSTITUTE"
+                :crdt/stamp {:crdt/counter 0 :crdt/actor 0}}
+               (register/init))
+            "init followed the substituted core")
+        (is (= "WRITTEN-BY-SUBSTITUTE"
+               (:crdt/value (register/write "red" {:crdt/counter 1 :crdt/actor 0})))
+            "write followed it")
+        (is (= "VALUE-FROM-SUBSTITUTE" (register/value early))
+            "value followed it")
+        (is (= early (register/merge-register early late))
+            "merge kept the left register, against the stamps")
+        (is (nil? (register/merge-register nil late))
+            "and kept absence, where the shipped rule returns the register")
+        (testing "doc's per-field merge follows with it"
+          ;; `doc` cannot cross into the guest at all — its state is a
+          ;; collection the interpreter refuses — but the decision it makes
+          ;; per field is this one, reached through `apply-op`. Under the
+          ;; substitute the field goes MISSING, because `doc` sets a field by
+          ;; merging the incoming register onto whatever was there, and a
+          ;; merge that keeps its left argument keeps the absence.
+          (is (nil? (set-title-through-doc))))))
+    (testing "restored"
+      (is (nil? (register/init)))
+      (is (= "red" (register/value early)))
+      (is (= late (register/merge-register early late)))
+      (is (= {:crdt/value "hello" :crdt/stamp {:crdt/counter 9 :crdt/actor 0}}
+             (set-title-through-doc))
+          "doc's field is decided by the shipped core again"))))
+
+(deftest a-value-the-guest-cannot-hold-does-not-reach-it
+  ;; The stated boundary, as a test rather than a docstring. Under a
+  ;; substituted core that gets every crossable answer wrong, these are
+  ;; expected to be UNCHANGED — the same statement as "still answered by host
+  ;; code", said in the direction that can fail.
+  (let [wrong (:kir (compiler/compile-source wrong-register-source gen/target {}))
+        long-value (apply str (repeat (inc oracle/max-string-bytes) "x"))]
+    (with-core :register wrong
+      (fn []
+        (testing "a non-string value"
+          (is (= 1.5 (register/value (register/write 1.5 {:crdt/counter 1 :crdt/actor 0})))))
+        (testing "a non-integer actor"
+          (let [a (register/write "red" {:crdt/counter 1 :crdt/actor "alice"})
+                b (register/write "blue" {:crdt/counter 2 :crdt/actor "bob"})]
+            (is (= "red" (register/value a)))
+            (is (= b (register/merge-register a b)))
+            (is (= a (register/merge-register a nil)))))
+        (testing "a value longer than the guest's string ceiling"
+          (is (= long-value
+                 (register/value (register/write long-value
+                                                 {:crdt/counter 1 :crdt/actor 0})))))
+        (testing "a register carrying more than the artifact declares"
+          ;; The guest returns only its two fields, so a map with a third
+          ;; could not be rebuilt from the answer and is left to the host.
+          (let [tagged {:crdt/value "red" :crdt/stamp {:crdt/counter 1 :crdt/actor 0}
+                        :host/origin "s-1"}]
+            (is (= "red" (register/value tagged)))
+            (is (= tagged (register/merge-register tagged nil)))))
+        (testing "a stamp missing a field the guest needs"
+          (is (= "red" (register/value {:crdt/value "red" :crdt/stamp {}}))))))))
+
+(deftest the-register-abi-is-read-out-of-the-artifact
+  ;; `register.cljc` writes neither record type down; it asks the shipped core
+  ;; for the declared field order and builds positionally from that. Pinned so
+  ;; that a rename or a reordering in `register.kotoba` shows up as this
+  ;; failing rather than as records that no longer match their declared type.
+  (let [stamp [:record :kotoba.crdt/stamp [[:counter :i64] [:actor :i64]]]
+        reg [:record :kotoba.crdt/string-register [[:value :string] [:stamp stamp]]]]
+    (is (= [:string stamp] (oracle/param-types :register 'write)))
+    (is (= reg (:result (oracle/signature :register 'write))))
+    (is (= [reg] (oracle/param-types :register 'value)))
+    (is (= :string (:result (oracle/signature :register 'value))))
+    (is (= [:option reg] (:result (oracle/signature :register 'init))))
+    (is (= [[:option reg] [:option reg]]
+           (oracle/param-types :register 'merge-register)))))
+
+(deftest the-shipped-register-carries-the-clock-rule-with-it
+  ;; `register.kotoba` `:require`s `clock.kotoba`, so the artifact is the two
+  ;; modules linked. That is why the stamp tiebreak is not restated in
+  ;; `register.cljc`: it arrives inside the register's own artifact, and a
+  ;; merge decided on equal counters proves the linked `before?` ran.
+  (let [a {:crdt/value "from-actor-0" :crdt/stamp {:crdt/counter 1 :crdt/actor 0}}
+        b {:crdt/value "from-actor-1" :crdt/stamp {:crdt/counter 1 :crdt/actor 1}}]
+    (is (= b (register/merge-register a b)) "higher actor id breaks the tie")
+    (is (= b (register/merge-register b a)) "from either side")))
+
+(deftest orset-and-doc-are-not-in-cores-and-the-node-limit-is-why
+  ;; The measurement that keeps this honest. `cores` holds two of the four
+  ;; `.kotoba` modules, and the reason is not that the other two were skipped:
+  ;; they hold collections that grow with the document, and the interpreter
+  ;; refuses an ADT value past a node limit. If that limit ever lifts far
+  ;; enough for a real document, this test fails and the choice gets revisited
+  ;; — which is better than a comment that quietly goes out of date.
+  (is (= #{:clock :register} (set (keys oracle/cores))))
+  (let [stamp-type [:record :kotoba.crdt/stamp [[:counter :i64] [:actor :i64]]]
+        tag-map [:map stamp-type :bool]
+        adds [:map :i64 tag-map]
+        orset-type [:record :kotoba.crdt/orset-i64-v1
+                    [[:adds adds] [:tombstones tag-map]]]
+        module (:kir (compiler/compile-project gen/sources 'kotoba.crdt.orset gen/target))
+        orset (fn [n]
+                [orset-type
+                 [adds (vec (for [i (range n)]
+                              [(long i) [tag-map [[[stamp-type (long i) 0] true]]]]))]
+                 [tag-map []]])
+        crosses? (fn [n] (try (kir/execute module 'contains-elem? [(orset n) 0]) true
+                              (catch Exception _ false)))]
+    (is (crosses? 10) "ten elements cross")
+    (is (not (crosses? 11)) "eleven do not — a document is bigger than that")))

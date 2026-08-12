@@ -90,37 +90,77 @@ Both are commutative, associative, and idempotent: apply the same ops twice,
 or in either order, on any replica, and every replica converges to the same
 `snapshot`.
 
-## Where the Lamport rules live
+## Where the merge rules live
 
-`kotoba.crdt.clock`'s `init`, `tick`, `observe` and `before?` do not compute
-anything in Clojure. They run `src/kotoba/crdt/clock.kotoba` — compiled and
-shipped as `resources/kotoba/crdt/oracle/clock.kir.edn`, executed through
+`kotoba.crdt.clock`'s `init`, `tick`, `observe` and `before?`, and
+`kotoba.crdt.register`'s `init`, `write`, `value` and `merge-register`, do not
+compute anything in Clojure. They run `src/kotoba/crdt/clock.kotoba` and
+`src/kotoba/crdt/register.kotoba` — compiled and shipped as
+`resources/kotoba/crdt/oracle/*.kir.edn`, executed through
 `kotoba.crdt.kotoba-oracle`. That is why `io.github.kotoba-lang/kotoba-kir` is
-a runtime dependency; the compiler that produced the artifact stays under
+a runtime dependency; the compiler that produced the artifacts stays under
 `:test` and never reaches a consumer.
 
-Before this, `clock.kotoba` and `clock.cljc` were two implementations of one
-rule bound by `clock-kotoba-parity-test`. Two implementations bound by a test
-are still two implementations — the parity test is still here and still green,
-but it is no longer what makes them agree. `kotoba-oracle-test` adds the two
-questions a parity test structurally cannot ask: whether the shipped artifact
-is the current source compiled, and whether the host actually reads it.
+The register's artifact is `register.kotoba` **linked against**
+`clock.kotoba`, so the stamp comparison that settles an LWW race arrives inside
+it. The tiebreak is stated once, in one file, and no longer restated in Clojure
+anywhere.
 
-Three boundaries, stated rather than discovered:
+Before this, each `.kotoba` and its `.cljc` were two implementations of one
+rule bound by a parity test. Two implementations bound by a test are still two
+implementations — the parity tests are still here and still green, but they are
+no longer what makes them agree. `kotoba-oracle-test` adds the two questions a
+parity test structurally cannot ask: whether the shipped artifact is the
+current source compiled, and whether the host actually reads it.
+
+### `orset` and `doc` are not delegated, and the reason is a number
+
+Both compile, link and run, and both are bound to their `.cljc` twins by parity
+tests. Neither is in `kotoba-oracle/cores`, because neither *can* be: they hold
+collections whose size is the user's document, and the KIR interpreter refuses
+an ADT value past a node limit. Measured against the pinned interpreter, with
+one add-tag per element:
+
+| core                              | crosses | refused |
+| --------------------------------- | ------: | ------: |
+| `orset`, elements                 |      10 |      11 |
+| `orset`, tags on one element      |      14 |      15 |
+| `doc`, entities                   |       4 |       5 |
+
+A document with five shapes in it is not an edge case, so there is no version
+of this seam that puts `merge-orset` or `merge-docs` behind a shipped artifact.
+That is a property of those cores — an OR-Set merge *is* a whole-collection
+operation — not a shortfall in the port, so they keep their parity gates and
+nothing pretends otherwise.
+
+`register` is the opposite shape, which is why it is delegated: `merge-register`
+is handed exactly two registers no matter how large the document grows, so one
+decision's worth of data is a constant. `doc.cljc` reaches it once per field —
+so a document whose *state* cannot cross still has its per-field winner decided
+by the shipped core.
+
+### Boundaries, stated rather than discovered
 
 - **Actors.** `clock.kotoba` types actors `:i64`; this library has always taken
   any comparable id, and the example above passes `"alice"`. So delegation is
   conditional on the data: integer actors are answered by the shipped core,
   everything else by the host path, unchanged. A non-integer actor is therefore
   served by code no `.kotoba` checks.
-- **ClojureScript.** There is no classpath to read the artifact from, so a
-  ClojureScript host must call `kotoba-oracle/register-kir!` before an
-  integer-actor clock will work. Non-integer actors are unaffected.
+- **Values.** `register.kotoba` types values `:string`, bounded at 65536 UTF-8
+  bytes. A non-string value, or a longer one, takes the host path rather than
+  raising — a document field is allowed to be something the guest cannot hold.
+- **Whole registers.** Unlike a clock, which is a host map the guest decides one
+  field of, a register *is* the guest value. A register map carrying keys beyond
+  the two the artifact declares takes the host path, rather than coming back
+  without them.
+- **ClojureScript.** There is no classpath to read the artifacts from, so a
+  ClojureScript host must call `kotoba-oracle/register-kir!` before a delegated
+  call will work. Values that never reach the guest are unaffected.
 - **`stamp`, `after?`, `max-stamp`** have no Kotoba counterpart and still
   compute here. `after?` and `max-stamp` are phrased in terms of `before?`, so
   the order they use did move; `stamp` is a `select-keys`.
 
-Regenerate the artifact after editing any `.kotoba` under `src/`:
+Regenerate the artifacts after editing any `.kotoba` under `src/`:
 
 ```bash
 clojure -M:test:gen
