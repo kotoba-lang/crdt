@@ -48,8 +48,13 @@
                       [clojure.java.io :as io]])))
 
 (def cores
-  "Oracle id -> the .kotoba it was compiled from, under src/."
-  {:clock "kotoba/crdt/clock.kotoba"})
+  "Oracle id -> the .kotoba it was compiled from, under src/.
+
+  Two of the four `.kotoba` modules are here. The other two are not, and that is
+  a measurement rather than an omission: see the note at the bottom of this
+  namespace."
+  {:clock "kotoba/crdt/clock.kotoba"
+   :register "kotoba/crdt/register.kotoba"})
 
 (defn resource-path [id]
   (str "kotoba/crdt/oracle/" (name id) ".kir.edn"))
@@ -140,6 +145,29 @@
   [record-value]
   (rest record-value))
 
+(defn option-payload-type
+  "`T` of an `[:option T]` descriptor."
+  [option-type]
+  (second option-type))
+
+(defn option-some
+  "Build a guest `some`."
+  [option-type payload]
+  [option-type true payload])
+
+(defn option-none
+  "Build a guest `none`."
+  [option-type]
+  [option-type false])
+
+(defn option-value
+  "Payload of a guest option, or nil for `none`.
+
+  A guest payload is never itself nil, so nil is an unambiguous answer here —
+  which is what lets `register`'s absent value stay `nil` on the host side."
+  [option-value]
+  (when (nth option-value 1) (nth option-value 2)))
+
 (defn fits-i64?
   "Whether a host value can cross as `:i64` without changing what it means.
 
@@ -159,3 +187,54 @@
   "Guest `:i64` -> host integer."
   [n]
   #?(:clj n :cljs (js/Number n)))
+
+(def max-string-bytes
+  "The guest's `:string` ceiling, in UTF-8 bytes.
+
+  Measured against the pinned interpreter rather than read off a document:
+  65536 bytes is accepted and 65537 raises `string exceeds UTF-8 byte limit`,
+  and the same boundary holds for multi-byte text (21845 three-byte characters
+  = 65535 bytes crosses; 21846 = 65538 does not)."
+  65536)
+
+#?(:cljs (def ^:private text-encoder (delay (js/TextEncoder.))))
+
+(defn- utf8-bytes [s]
+  #?(:clj  (alength (.getBytes ^String s "UTF-8"))
+     :cljs (.-length (.encode @text-encoder s))))
+
+(defn fits-string?
+  "Whether a host value can cross as `:string`.
+
+  The cheap test first: no character encodes to more than three UTF-8 bytes per
+  UTF-16 unit, so a short enough string is admissible without encoding it. Only
+  a string long enough to be in doubt gets measured, which matters because this
+  is asked on every field a document merges."
+  [s]
+  (and (string? s)
+       (or (<= (* 3 (count s)) max-string-bytes)
+           (<= (utf8-bytes s) max-string-bytes))))
+
+;; ── the two modules that are not here ────────────────────────────────
+;;
+;; `orset.kotoba` and `doc.kotoba` are compiled, linked and bound to their
+;; `.cljc` twins by parity tests, and they are deliberately NOT in `cores`.
+;; They cannot be: both hold a collection whose size is the user's document,
+;; and the interpreter refuses an ADT value past a node limit. Measured against
+;; the pinned interpreter, with one add-tag per element:
+;;
+;;   orset   10 elements cross;      11 raise `ADT value exceeds node limit`
+;;   orset   14 tags on one element cross; 15 raise it
+;;   doc      4 entities cross;       5 raise it
+;;
+;; A document with five shapes in it is not an edge case, so there is no
+;; version of this seam that puts `merge-orset` or `merge-docs` behind the
+;; shipped artifact. That is a property of those cores — an OR-Set merge IS a
+;; whole-collection operation — and not a shortfall in the port, so they keep
+;; their parity gates and nothing pretends otherwise.
+;;
+;; `register` is the opposite shape and that is why it is here: `merge-register`
+;; is handed exactly two registers no matter how large the document grows, so
+;; one decision's worth of data is a constant. `doc.cljc` reaches it per field,
+;; which is how a document whose STATE cannot cross still has its per-field
+;; winner decided by the shipped core.
