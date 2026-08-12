@@ -2,10 +2,15 @@
 
 [![CI](https://github.com/kotoba-lang/crdt/actions/workflows/ci.yml/badge.svg)](https://github.com/kotoba-lang/crdt/actions/workflows/ci.yml)
 
-Portable, zero-dependency CLJC convergent-replica primitives for Kotoba
-document editors (slides, docs, sheets, KAMI scenes...). Pure data, pure
-functions — no network, no storage, no actor identity. Hosts own every
-effect; this package only knows how to merge.
+Portable CLJC convergent-replica primitives for Kotoba document editors
+(slides, docs, sheets, KAMI scenes...). Pure data, pure functions — no network,
+no storage, no actor identity. Hosts own every effect; this package only knows
+how to merge.
+
+One runtime dependency, and it is the point rather than an accident: this used
+to say "zero-dependency", and that stopped being true when `clock.kotoba`
+stopped being a checked replica and became what runs. See [Where the Lamport
+rules live](#where-the-lamport-rules-live).
 
 ## Why
 
@@ -84,6 +89,42 @@ Two synchronization strategies, both supported:
 Both are commutative, associative, and idempotent: apply the same ops twice,
 or in either order, on any replica, and every replica converges to the same
 `snapshot`.
+
+## Where the Lamport rules live
+
+`kotoba.crdt.clock`'s `init`, `tick`, `observe` and `before?` do not compute
+anything in Clojure. They run `src/kotoba/crdt/clock.kotoba` — compiled and
+shipped as `resources/kotoba/crdt/oracle/clock.kir.edn`, executed through
+`kotoba.crdt.kotoba-oracle`. That is why `io.github.kotoba-lang/kotoba-kir` is
+a runtime dependency; the compiler that produced the artifact stays under
+`:test` and never reaches a consumer.
+
+Before this, `clock.kotoba` and `clock.cljc` were two implementations of one
+rule bound by `clock-kotoba-parity-test`. Two implementations bound by a test
+are still two implementations — the parity test is still here and still green,
+but it is no longer what makes them agree. `kotoba-oracle-test` adds the two
+questions a parity test structurally cannot ask: whether the shipped artifact
+is the current source compiled, and whether the host actually reads it.
+
+Three boundaries, stated rather than discovered:
+
+- **Actors.** `clock.kotoba` types actors `:i64`; this library has always taken
+  any comparable id, and the example above passes `"alice"`. So delegation is
+  conditional on the data: integer actors are answered by the shipped core,
+  everything else by the host path, unchanged. A non-integer actor is therefore
+  served by code no `.kotoba` checks.
+- **ClojureScript.** There is no classpath to read the artifact from, so a
+  ClojureScript host must call `kotoba-oracle/register-kir!` before an
+  integer-actor clock will work. Non-integer actors are unaffected.
+- **`stamp`, `after?`, `max-stamp`** have no Kotoba counterpart and still
+  compute here. `after?` and `max-stamp` are phrased in terms of `before?`, so
+  the order they use did move; `stamp` is a `select-keys`.
+
+Regenerate the artifact after editing any `.kotoba` under `src/`:
+
+```bash
+clojure -M:test:gen
+```
 
 ## What this does *not* do
 

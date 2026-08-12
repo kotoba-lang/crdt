@@ -9,9 +9,21 @@
   Kotoba clock and the Clojure clock agree, because nothing ever ran them over
   the same inputs.
 
-  They are two implementations of one rule — Lamport receive (`max(local,
-  received) + 1`) and a total order with the actor id as tiebreak — and until
-  now only one of them could be wrong at a time without anything noticing.
+  They were two implementations of one rule — Lamport receive (`max(local,
+  received) + 1`) and a total order with the actor id as tiebreak — and before
+  this test only one of them could be wrong at a time without anything noticing.
+
+  ## What it means now that the host delegates
+
+  `clock.cljc` no longer computes these for integer actors; it runs the shipped
+  `resources/kotoba/crdt/oracle/clock.kir.edn`. So on the cases below both sides
+  of every assertion are `clock.kotoba`, once from the artifact and once
+  compiled here and now — which makes this a check that the two compiles agree,
+  not that two implementations do. Keeping it is still worth the seconds: it is
+  the only thing that runs the guest against 1,200-odd inputs through the same
+  entry a caller uses, and it is what will fail first if a pin advance changes
+  what the module means. What it can no longer catch — a host that quietly kept
+  its own copy — is `kotoba-oracle-test`'s job.
 
   ## Why the clock first
 
