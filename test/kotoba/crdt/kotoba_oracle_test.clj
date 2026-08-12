@@ -355,3 +355,63 @@
                               (catch Exception _ false)))]
     (is (crosses? 10) "ten elements cross")
     (is (not (crosses? 11)) "eleven do not — a document is bigger than that")))
+
+;; ── the ClojureScript asymmetry, checked from the JVM ────────────────
+
+(defn- unconverted-i64s
+  "Paths in a built guest value where an `:i64` did not go through
+  `kotoba-oracle/i64`, walking the DECLARED type rather than guessing from the
+  value.
+
+  `kir/execute` coerces a top-level `:i64` argument and will accept a host
+  integer, but an `:i64` **inside a record** goes through
+  `value/bounded-typed-value!`, which on ClojureScript requires a `js/BigInt`
+  and rejects a `js/Number`. A seam that passes record fields unconverted
+  therefore works on the JVM and throws `value is not a signed i64` on
+  ClojureScript — which is how `kotoba-lang/calendar`'s delegated `overlaps?`
+  was broken for a day under a green JVM suite.
+
+  On the JVM `oracle/i64` is `(long n)`, so feeding host maps whose numbers are
+  `Integer` makes the omission visible here: a converted field is a `Long` and
+  an unconverted one is still an `Integer`. That is the same question cljs
+  asks, asked where this repository can actually run it."
+  ([type v] (unconverted-i64s type v []))
+  ([type v path]
+   (case type
+     :i64 (when-not (instance? Long v) [[path (class v)]])
+     :string nil
+     (mapcat (fn [[field field-type] field-value]
+               (unconverted-i64s field-type field-value (conj path field)))
+             (oracle/record-fields type)
+             (oracle/record-values v)))))
+
+;; `->guest` is private in both namespaces, and reached here deliberately: the
+;; thing under test is the ABI conversion itself, and no public function hands
+;; back the guest value it built.
+(def ^:private clock->guest @#'clock/->guest)
+(def ^:private register->guest @#'register/->guest)
+
+(deftest every-i64-crosses-converted-including-the-ones-nested-in-a-record
+  (testing "clock — flat records, both fields :i64"
+    (doseq [export ['tick 'observe]
+            type (oracle/param-types :clock export)]
+      (is (empty? (unconverted-i64s
+                   type (clock->guest type {:crdt/counter (int 5) :crdt/actor (int 1)})))
+          (str "clock " export " " (pr-str type)))))
+  (testing "register — a record with a record inside it"
+    ;; The case `calendar` got wrong: the outer value is fine and the nested
+    ;; stamp is the one that reaches `bounded-typed-value!`.
+    (let [register-type (:result (oracle/signature :register 'write))
+          stamp-type (second (oracle/param-types :register 'write))
+          host {:crdt/value "red"
+                :crdt/stamp {:crdt/counter (int 1) :crdt/actor (int 0)}}]
+      (is (empty? (unconverted-i64s register-type (register->guest register-type host))))
+      (is (empty? (unconverted-i64s stamp-type
+                                    (register->guest stamp-type (:crdt/stamp host)))))))
+  (testing "the check can fail"
+    ;; A gate nobody has watched fail is theatre, and this one is cheap to
+    ;; aim at itself: hand it the same record built WITHOUT the conversion.
+    (let [stamp-type (second (oracle/param-types :register 'write))
+          unconverted [stamp-type (int 1) (int 0)]]
+      (is (= [[[:counter] Integer] [[:actor] Integer]]
+             (vec (unconverted-i64s stamp-type unconverted)))))))

@@ -156,6 +156,30 @@ by the shipped core.
 - **ClojureScript.** There is no classpath to read the artifacts from, so a
   ClojureScript host must call `kotoba-oracle/register-kir!` before a delegated
   call will work. Values that never reach the guest are unaffected.
+
+### ClojureScript is not covered by the test suite
+
+**This repository has no ClojureScript test path** — every test is `.clj`, run
+on the JVM, and there is no `package.json`, no `shadow-cljs.edn` and no cljs
+dependency. A green suite says nothing about the `:cljs` reader branch, and it
+is worth saying so, because one of the two runtime differences is silent on the
+JVM:
+
+`kir/execute` coerces a **top-level** `:i64` argument and accepts a host
+integer, but an `:i64` **inside a record** goes through
+`bounded-typed-value!`, which on ClojureScript requires a `js/BigInt` and
+rejects a `js/Number`. A seam that passes record fields unconverted works on
+the JVM and throws `value is not a signed i64` on ClojureScript.
+`kotoba-lang/calendar` was broken that way for a day under a green suite.
+
+Both seams here convert every `:i64`, including `register`'s stamp nested
+inside its register, and
+`every-i64-crosses-converted-including-the-ones-nested-in-a-record` holds them
+to it. That test gets at the question from the JVM by feeding host maps whose
+numbers are `Integer`: on this runtime `oracle/i64` is `(long n)`, so an
+unconverted field stays an `Integer` and is visible. **The inbound direction is
+not covered** — `oracle/i64-value` is identity on the JVM, so a missing
+conversion there cannot be detected here by any means, only read.
 - **`stamp`, `after?`, `max-stamp`** have no Kotoba counterpart and still
   compute here. `after?` and `max-stamp` are phrased in terms of `before?`, so
   the order they use did move; `stamp` is a `select-keys`.
