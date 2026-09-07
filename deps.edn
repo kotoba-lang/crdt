@@ -27,8 +27,8 @@
  ;; They have to match: KIR is a versioned document, and an interpreter reading
  ;; a shape its emitter did not write is exactly the failure the artifact was
  ;; supposed to remove.
- :deps {io.github.kotoba-lang/kotoba-kir
-        {:git/url "https://github.com/kotoba-lang/kotoba-kir.git"
+ :deps {io.github.kotoba-lang/osaho
+        {:git/url "https://github.com/kotoba-lang/osaho.git"
          :git/sha "838cd77c55f069336e7da9134c1921d67f98ed92"}}
  :aliases
  {:test {:extra-paths ["test"]
