@@ -11,7 +11,7 @@
   what ships."
   (:require [clojure.java.io :as io]
             [clojure.pprint :as pp]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [kotoba.compiler.core :as compiler]
             [kotoba.crdt.kotoba-oracle :as oracle])
   (:gen-class))
