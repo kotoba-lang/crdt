@@ -1,9 +1,9 @@
 {:schema "kotoba-crdt-doc-orset-gap/v1"
  :reviewed-on "2026-07-19"
  :sources
- [{:path "src/kotoba/crdt/orset.cljc"
+ [{:path "src/kotoba/crdt/orset.cljk"
    :legacy-domain :arbitrary-element-to-observed-tag-set-map}
-  {:path "src/kotoba/crdt/doc.cljc"
+  {:path "src/kotoba/crdt/doc.cljk"
    :legacy-domain :arbitrary-entity-to-arbitrary-field-to-register-map}]
  :consumer-inventory
  {:workspace-roots ["orgs" "projects"]
