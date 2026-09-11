@@ -1,6 +1,6 @@
 {:schema "kotoba-crdt-string-register-migration/v1"
  :legacy
- {:source "src/kotoba/crdt/register.cljc"
+ {:source "src/kotoba/crdt/register.cljk"
   :value-domain :any-host-value
   :status :retained-through-consumer-cutover}
  :canonical

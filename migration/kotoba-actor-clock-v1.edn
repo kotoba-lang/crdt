@@ -1,6 +1,6 @@
 {:schema "kotoba-crdt-actor-clock-migration/v1"
  :legacy
- {:source "src/kotoba/crdt/clock.cljc"
+ {:source "src/kotoba/crdt/clock.cljk"
   :actor-domain :host-comparable-value
   :status :retained-through-consumer-cutover}
  :canonical
