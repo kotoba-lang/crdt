@@ -35,7 +35,7 @@
     (testing (str id " <- " source)
       (let [shipped (edn/read-string (slurp (io/resource (oracle/resource-path id))))]
         (is (= (gen/compile-kir source) shipped)
-            (str "shipped KIR for " id " is stale — run `clojure -M:test:gen`"))))))
+            (str "shipped KIR for " id " is stale — run `kbb -M:test:gen`"))))))
 
 (deftest compiling-twice-gives-the-same-kir-so-the-drift-check-can-compare-raw
   ;; The drift check above compares with `=`, which is only a check at all if

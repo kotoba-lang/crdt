@@ -47,7 +47,7 @@
   ;; Regenerate the shipped decision-core KIR. Combine with :test, which is
   ;; where the compiler lives:
   ;;
-  ;;   clojure -M:test:gen
+  ;;   kbb -M:test:gen
   :gen {:main-opts ["-m" "kotoba.crdt.kotoba-oracle-gen"]}
   :coverage {:extra-paths ["test"]
              :extra-deps {cloverage/cloverage {:mvn/version "1.2.4"}
