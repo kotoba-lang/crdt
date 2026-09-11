@@ -187,7 +187,7 @@ conversion there cannot be detected here by any means, only read.
 Regenerate the artifacts after editing any `.kotoba` under `src/`:
 
 ```bash
-clojure -M:test:gen
+kbb -M:test:gen
 ```
 
 ## What this does *not* do
@@ -209,6 +209,6 @@ section for per-actor signing identity.
 ## Test
 
 ```bash
-clojure -M:test
-clojure -M:coverage
+kbb -M:test
+kbb -M:coverage
 ```
