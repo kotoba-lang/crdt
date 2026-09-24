@@ -1,5 +1,5 @@
 (ns kotoba.crdt.orset-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.crdt.orset :as orset]))
 
 (deftest add-remove-elements-test

@@ -28,7 +28,7 @@
   a subset of what the `.cljc` accepts. `elements` has no guest counterpart —
   only `contains-elem?` — so set-at-once equality is checked by asking about
   every element the script mentions."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.crdt.kotoba-project :as project]
             [kotoba.crdt.orset :as orset]
             [kotoba.kir :as kir]))

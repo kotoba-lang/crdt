@@ -1,5 +1,5 @@
 (ns kotoba.crdt.doc-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.crdt.clock :as clock]
             [kotoba.crdt.doc :as doc]))
 

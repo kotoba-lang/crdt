@@ -18,7 +18,7 @@
   a `none` option and the `.cljc` returns `nil`, and the interesting question
   is whether the two absences behave alike in a merge, not whether they print
   alike."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.crdt.kotoba-project :as project]
             [kotoba.crdt.register :as register]
             [kotoba.kir :as kir]))

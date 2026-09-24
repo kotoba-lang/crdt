@@ -18,7 +18,7 @@
   that answers differently and see whether the host follows."
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
-            [clojure.test :refer [deftest is testing]]
+            [kotoba.test :refer [deftest is testing]]
             [kotoba.compiler.core :as compiler]
             [kotoba.crdt.clock :as clock]
             [kotoba.crdt.doc :as doc]

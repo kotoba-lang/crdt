@@ -37,7 +37,7 @@
   id, so the cases use integer actors — the overlap, not the whole `.cljc`
   surface. `stamp`, `after?` and `max-stamp` have no Kotoba counterpart and are
   not covered here; that is a gap in the port, not in this test."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.compiler.core :as compiler]
             [kotoba.crdt.clock :as clock]
             [kotoba.kir :as kir]))

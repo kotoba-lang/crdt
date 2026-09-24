@@ -1,5 +1,5 @@
 (ns kotoba.crdt.kotoba-conformance-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.compiler.core :as compiler]
             [kotoba.kir :as kir]))
 

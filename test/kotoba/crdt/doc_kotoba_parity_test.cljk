@@ -27,7 +27,7 @@
   have no guest counterpart; `apply-op` and `merge-docs` are the shared surface
   and are what this covers. `.cljc` has no `contains-entity?`, so membership is
   asked as `(contains? (doc/entities d) e)`."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.crdt.doc :as doc]
             [kotoba.crdt.kotoba-project :as project]
             [kotoba.kir :as kir]))
