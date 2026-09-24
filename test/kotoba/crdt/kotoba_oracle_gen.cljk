@@ -9,8 +9,8 @@
   `compile-kir` rather than repeating the compile call, because a test that
   compiled differently from this file would be checking something other than
   what ships."
-  (:require [clojure.java.io :as io]
-            [clojure.pprint :as pp]
+  (:require [kotoba.io :as io]
+            [kotoba.pprint :as pp]
             [kotoba.lang.text :as str]
             [kotoba.compiler.core :as compiler]
             [kotoba.crdt.kotoba-oracle :as oracle])
@@ -62,7 +62,7 @@
   (let [out (io/file "resources" (oracle/resource-path id))]
     (io/make-parents out)
     (spit out (with-out-str (pp/pprint (compile-kir source-path))))
-    (.getPath out)))
+    (io/path out)))
 
 (defn regenerate-all! []
   (mapv (fn [[id source]] (write-artifact! id source)) (sort-by key oracle/cores)))
