@@ -1,5 +1,5 @@
 (ns kotoba.crdt.clock-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.crdt.clock :as clock]))
 
 (deftest tick-and-stamp-test
