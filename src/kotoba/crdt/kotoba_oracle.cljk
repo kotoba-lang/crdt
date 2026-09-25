@@ -42,10 +42,10 @@
   way in and `kir` throws without it. That is a real narrowing of what this
   library used to do on that runtime and it is stated rather than discovered:
   see the boundary note on `kotoba.crdt.clock`."
-  (:require [kotoba.kir :as kir]
+  (:require [kotoba.bytes :as kbytes] [kotoba.kir :as kir]
             ;; Both only exist on the branch that has a classpath to read from.
             #?@(:clj [[kotoba.lang.edn :as edn]
-                      [clojure.java.io :as io]])))
+                      [kotoba.io :as io]])))
 
 (def cores
   "Oracle id -> the .kotoba it was compiled from, under src/.
@@ -200,7 +200,7 @@
 #?(:cljs (def ^:private text-encoder (delay (js/TextEncoder.))))
 
 (defn- utf8-bytes [s]
-  #?(:clj  (alength (.getBytes ^String s "UTF-8"))
+  #?(:clj  (alength (kbytes/utf8-bytes ^String s))
      :cljs (.-length (.encode @text-encoder s))))
 
 (defn fits-string?
