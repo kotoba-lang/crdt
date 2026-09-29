@@ -203,7 +203,7 @@ shape, are the actual guarantee this package makes.
 **No transport, no auth, no persistence.** Wiring `doc/add-entity`'s returned
 `op` onto a wire, authenticating who's allowed to write, and durably storing
 the op log are all host concerns — see `kotobase` (`IStore` `append`/`read`)
-for the storage/transport substrate and CLAUDE.md's kotoba-server CACAO
+for the storage/transport substrate and AGENTS.md's kotoba-server CACAO
 section for per-actor signing identity.
 
 ## Test
